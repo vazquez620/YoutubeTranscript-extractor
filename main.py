@@ -121,9 +121,9 @@ def _fetch_transcript(video_id: str) -> tuple[list[dict] | None, str]:
         raw = transcript.fetch()
         segments = [
             {
-                "start": round(float(s.get("start", 0)), 3),
-                "duration": round(float(s.get("duration", 0)), 3),
-                "text": s.get("text", ""),
+                "start": round(s.start, 2),
+                "duration": round(s.duration, 2),
+                "text": s.text.strip(),
             }
             for s in raw
         ]
