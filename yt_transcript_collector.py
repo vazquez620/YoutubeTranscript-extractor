@@ -73,7 +73,8 @@ def fetch_transcript(video_id: str) -> tuple[list[dict], str] | tuple[None, str]
     Returns (segments, language_code) or (None, reason_string).
     """
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        ytt_api = YouTubeTranscriptApi()
+        transcript_list = ytt_api.list(video_id)
     except TranscriptsDisabled:
         return None, "Transcripts are disabled for this video"
     except VideoUnavailable:
