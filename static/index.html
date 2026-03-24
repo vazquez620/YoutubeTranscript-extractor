@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YT Transcript Downloader</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #161b24;
+      --border:   #252d3d;
+      --accent:   #4f8ef7;
+      --accent-h: #3a76e0;
+      --text:     #e2e8f0;
+      --muted:    #8896ab;
+      --error:    #f87171;
+      --success:  #4ade80;
+      --radius:   14px;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── hero badge ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,142,247,.12);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    .badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.5; transform:scale(.8); }
+    }
+
+    /* ── card ── */
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px 44px 40px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.45);
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .desc {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 36px;
+    }
+    .desc strong { color: var(--text); }
+
+    /* ── form ── */
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      margin-bottom: 20px;
+    }
+    input[type="text"]::placeholder { color: #4a5568; }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,142,247,.15);
+    }
+    input[type="text"].input-error {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(248,113,113,.12);
+    }
+
+    button {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background .2s, transform .1s, opacity .2s;
+    }
+    button:hover:not(:disabled) { background: var(--accent-h); }
+    button:active:not(:disabled) { transform: scale(.98); }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── spinner ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .spinner { display: block; }
+    .loading .btn-icon { display: none; }
+
+    /* ── status messages ── */
+    .msg {
+      margin-top: 18px;
+      font-size: 14px;
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: none;
+      line-height: 1.5;
+    }
+    .msg.error {
+      display: block;
+      background: rgba(248,113,113,.1);
+      border: 1px solid rgba(248,113,113,.3);
+      color: var(--error);
+    }
+    .msg.success {
+      display: block;
+      background: rgba(74,222,128,.08);
+      border: 1px solid rgba(74,222,128,.25);
+      color: var(--success);
+    }
+
+    /* ── features list ── */
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 36px;
+    }
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+      color: var(--muted);
+    }
+    .feature-icon {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(79,142,247,.12);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+    }
+
+    /* ── footer ── */
+    footer {
+      margin-top: 32px;
+      color: #3d4a5c;
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="badge">
+    <span class="badge-dot"></span>
+    No API Key Required
+  </div>
+
+  <div class="card">
+    <h1>YouTube Playlist<br>Transcript Downloader</h1>
+
+    <p class="desc">
+      Paste any public YouTube playlist URL and download <strong>all transcripts</strong>
+      as a ZIP of JSON files — complete with timestamps, plain text, and metadata.
+    </p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">✓</div>
+        Prefers manually-created English captions, falls back to auto-generated
+      </div>
+      <div class="feature">
+        <div class="feature-icon">✓</div>
+        Each video saved as its own JSON file inside the ZIP
+      </div>
+      <div class="feature">
+        <div class="feature-icon">✓</div>
+        Skipped videos summarised in <code>skipped_videos.json</code>
+      </div>
+    </div>
+
+    <label for="url-input">Playlist URL</label>
+    <input
+      id="url-input"
+      type="text"
+      placeholder="https://www.youtube.com/playlist?list=PL…"
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+    <button id="download-btn" onclick="startDownload()">
+      <span class="btn-icon">&#8659;</span>
+      <span class="spinner"></span>
+      <span id="btn-label">Download Transcripts</span>
+    </button>
+
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <footer>Works with public playlists &nbsp;·&nbsp; No sign-in needed</footer>
+
+  <script>
+    const btn   = document.getElementById('download-btn');
+    const label = document.getElementById('btn-label');
+    const input = document.getElementById('url-input');
+    const msg   = document.getElementById('msg');
+
+    function setMsg(text, type) {
+      msg.textContent = text;
+      msg.className = `msg ${type}`;
+    }
+
+    function clearMsg() {
+      msg.className = 'msg';
+      msg.textContent = '';
+    }
+
+    function setLoading(on) {
+      btn.disabled = on;
+      btn.classList.toggle('loading', on);
+      label.textContent = on ? 'Collecting transcripts…' : 'Download Transcripts';
+      input.classList.remove('input-error');
+    }
+
+    async function startDownload() {
+      clearMsg();
+      const url = input.value.trim();
+
+      if (!url) {
+        input.classList.add('input-error');
+        setMsg('Please enter a YouTube playlist URL.', 'error');
+        input.focus();
+        return;
+      }
+
+      if (!url.includes('youtube.com/playlist') && !url.includes('youtu.be')) {
+        input.classList.add('input-error');
+        setMsg('That doesn\'t look like a YouTube playlist URL. It should contain "youtube.com/playlist?list=…".', 'error');
+        input.focus();
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const res = await fetch('/collect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playlist_url: url }),
+        });
+
+        if (!res.ok) {
+          let detail = `Server error ${res.status}`;
+          try {
+            const err = await res.json();
+            detail = err.detail || detail;
+          } catch (_) {}
+          throw new Error(detail);
+        }
+
+        // Determine filename from Content-Disposition or fallback
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        const filename = match ? match[1] : 'transcripts.zip';
+
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objUrl);
+
+        setMsg('Download started! Check your downloads folder.', 'success');
+      } catch (err) {
+        setMsg(`Error: ${err.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Allow Enter key to submit
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') startDownload();
+    });
+  </script>
+</body>
+</html>

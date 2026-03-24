@@ -1,24 +1,30 @@
-# YouTube Playlist Transcript Collector
+# YouTube Playlist Transcript Downloader
 
-A CLI tool that downloads transcripts for every video in a YouTube playlist and
-saves them to a single JSON file.
+A full-stack web app that downloads transcripts for every video in a YouTube
+playlist and bundles them into a ZIP file for easy download.
 
 **No YouTube API key required.**
 
 ---
 
-## Requirements
+## Project structure
 
-- Python 3.10+
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — playlist metadata extraction
-- [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api) — transcript fetching
+```
+.
+├── main.py                    # FastAPI backend
+├── requirements.txt
+├── README.md
+├── static/
+│   └── index.html             # Frontend (single HTML file, no framework)
+└── yt_transcript_collector.py # Standalone CLI tool (see below)
+```
 
 ---
 
 ## Setup
 
 ```bash
-# 1. Clone or download this repository
+# 1. Clone the repository
 git clone https://github.com/vazquez620/youtubetranscript-extractor.git
 cd youtubetranscript-extractor
 
@@ -32,98 +38,79 @@ pip install -r requirements.txt
 
 ---
 
-## Usage
+## Run the web app
 
 ```bash
-# Auto-generated output filename (based on playlist title)
-python yt_transcript_collector.py <PLAYLIST_URL>
-
-# Specify a custom output filename
-python yt_transcript_collector.py <PLAYLIST_URL> output.json
+uvicorn main:app --reload
 ```
 
-### Examples
+Open **http://localhost:8000** in your browser.
 
-```bash
-# Collect transcripts from a public playlist
-python yt_transcript_collector.py "https://www.youtube.com/playlist?list=PLxxxxxx"
-
-# Save to a specific file
-python yt_transcript_collector.py "https://www.youtube.com/playlist?list=PLxxxxxx" my_transcripts.json
-```
-
-### Terminal output
-
-```
-Fetching playlist metadata from:
-  https://www.youtube.com/playlist?list=PLxxxxxx
-
-Playlist : My Awesome Playlist
-Videos   : 12
-
-[1/12] Introduction to Python
-         Collected — en (42 segments)
-[2/12] Advanced Topics
-         Collected — en (auto-generated) (87 segments)
-[3/12] Unlisted Video
-         Skipped — Video is unavailable
-...
-
-Done!
-  Collected : 11/12
-  Skipped   : 1/12
-  Output    : my_awesome_playlist_transcripts.json
-```
+Paste a public YouTube playlist URL and click **Download Transcripts**.
+The server will collect all available transcripts and stream a ZIP file back
+to your browser automatically.
 
 ---
 
-## Output format
+## What's in the ZIP?
+
+```
+my_playlist_transcripts.zip
+├── 001_intro_to_python.json
+├── 002_functions_and_scope.json
+├── 003_oop_basics.json
+│   ...
+└── skipped_videos.json        # summary of videos with no transcript
+```
+
+Each `{index}_{title}.json` file contains:
 
 ```json
 {
-  "metadata": {
-    "playlist_title": "My Awesome Playlist",
-    "playlist_id": "PLxxxxxx",
-    "playlist_url": "https://www.youtube.com/playlist?list=PLxxxxxx",
-    "collected_at": "2024-01-15T10:30:00+00:00",
-    "total_videos": 12,
-    "transcripts_collected": 11,
-    "transcripts_skipped": 1
-  },
-  "transcripts": [
-    {
-      "video_id": "dQw4w9WgXcQ",
-      "title": "Introduction to Python",
-      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "language": "en",
-      "segment_count": 42,
-      "transcript_text": "Full plain text of the transcript joined together...",
-      "transcript_segments": [
-        { "start": 0.0, "duration": 3.5, "text": "Hello and welcome" },
-        { "start": 3.5, "duration": 4.2, "text": "to this tutorial" }
-      ]
-    }
-  ],
-  "skipped": [
-    {
-      "video_id": "xxxxxxxxxx",
-      "title": "Unlisted Video",
-      "url": "https://www.youtube.com/watch?v=xxxxxxxxxx",
-      "reason": "Video is unavailable"
-    }
+  "video_id": "dQw4w9WgXcQ",
+  "title": "Introduction to Python",
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "language": "en",
+  "transcript_text": "Hello and welcome to this tutorial ...",
+  "transcript_segments": [
+    { "start": 0.0, "duration": 3.5, "text": "Hello and welcome" },
+    { "start": 3.5, "duration": 4.2, "text": "to this tutorial" }
   ]
 }
+```
+
+`skipped_videos.json` summarises any videos that could not be transcribed
+(disabled captions, unavailable video, etc.).
+
+---
+
+## Transcript language preference
+
+1. Manually created English (`en`)
+2. Auto-generated English (`en`)
+3. Any other available language
+
+---
+
+## Standalone CLI tool
+
+A command-line version is also included for offline / scripted use:
+
+```bash
+# Auto-named output file
+python yt_transcript_collector.py "https://www.youtube.com/playlist?list=PLxxxxxx"
+
+# Custom output file
+python yt_transcript_collector.py "https://www.youtube.com/playlist?list=PLxxxxxx" output.json
 ```
 
 ---
 
 ## Notes
 
-- **No API key needed** — uses `yt-dlp` for playlist metadata and
-  `youtube-transcript-api` for transcripts, both of which scrape YouTube
-  directly without requiring authentication.
-- Transcript language preference: manually-created English → auto-generated
-  English → any available language.
+- Uses **yt-dlp** for playlist metadata extraction (no download, no API key).
+- Uses **youtube-transcript-api** for transcript fetching (no API key).
 - A 0.3 s delay is added between requests to reduce the chance of rate limiting.
-- Videos with no available transcript are silently skipped and recorded in the
-  `skipped` array.
+- Blocking I/O is offloaded to a thread pool via `asyncio.run_in_executor` so
+  the FastAPI event loop stays responsive.
+- The ZIP is built entirely in memory (`io.BytesIO`) — nothing is written to disk.
